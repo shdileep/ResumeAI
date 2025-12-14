@@ -4,13 +4,14 @@ import { ATSAnalysis, InterviewInsight, ZeroAIScore } from "../types";
 // Initialize the client
 // NOTE: In a production app, never expose keys on the client side.
 // This is for demonstration purposes within the constraints.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const MODEL_NAME = "gemini-2.5-flash";
 
 export const generateProfessionalSummary = async (role: string, keywords: string): Promise<string> => {
-  if (!process.env.API_KEY) return "AI Summary unavailable: No API Key provided.";
-  
+  if (!API_KEY) return "AI Summary unavailable: No API Key provided.";
+
   try {
     const prompt = `Write a professional, ATS-friendly resume summary (approx 50-70 words) for a fresher applying for the role of "${role}". 
     Focus on these skills/keywords: ${keywords}. 
@@ -29,7 +30,7 @@ export const generateProfessionalSummary = async (role: string, keywords: string
 };
 
 export const polishSentence = async (text: string): Promise<string> => {
-  if (!process.env.API_KEY) return text;
+  if (!API_KEY) return text;
   if (!text || text.length < 5) return text;
 
   try {
@@ -48,8 +49,8 @@ export const polishSentence = async (text: string): Promise<string> => {
   }
 };
 
-export const getChatResponse = async (history: {role: string, parts: {text: string}[]}[], newMessage: string): Promise<string> => {
-  if (!process.env.API_KEY) return "I'm sorry, I can't connect to the server right now.";
+export const getChatResponse = async (history: { role: string, parts: { text: string }[] }[], newMessage: string): Promise<string> => {
+  if (!API_KEY) return "I'm sorry, I can't connect to the server right now.";
 
   try {
     const chat = ai.chats.create({
@@ -69,7 +70,7 @@ export const getChatResponse = async (history: {role: string, parts: {text: stri
 };
 
 export const enhanceResumeText = async (currentText: string, jobDescription: string): Promise<string> => {
-  if (!process.env.API_KEY) return currentText;
+  if (!API_KEY) return currentText;
 
   try {
     const prompt = `You are an expert resume writer. Rewrite the following resume content to better align with the provided Job Description.
@@ -100,7 +101,7 @@ export const enhanceResumeText = async (currentText: string, jobDescription: str
 };
 
 export const analyzeResumeATS = async (resumeText: string): Promise<ATSAnalysis | null> => {
-  if (!process.env.API_KEY) return null;
+  if (!API_KEY) return null;
 
   try {
     const prompt = `Analyze the following resume text for ATS (Applicant Tracking System) compliance. 
@@ -126,13 +127,13 @@ export const analyzeResumeATS = async (resumeText: string): Promise<ATSAnalysis 
           type: Type.OBJECT,
           properties: {
             score: { type: Type.NUMBER },
-            missingKeywords: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING } 
+            missingKeywords: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
             },
-            suggestions: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING } 
+            suggestions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
             },
             sectionAnalysis: {
               type: Type.ARRAY,
@@ -166,7 +167,7 @@ export const generateInterviewInsights = async (
   location: string,
   jobDesc: string
 ): Promise<InterviewInsight | null> => {
-  if (!process.env.API_KEY) return null;
+  if (!API_KEY) return null;
 
   try {
     const prompt = `Provide detailed interview insights for the company "${company}" for the role of "${role}" in location "${location}".
@@ -233,7 +234,7 @@ export const generateInterviewInsights = async (
 };
 
 export const detectAIProbability = async (text: string): Promise<ZeroAIScore> => {
-  if (!process.env.API_KEY) return { aiPercentage: 0, reasoning: "API unavailable", verdict: "Human-Written" };
+  if (!API_KEY) return { aiPercentage: 0, reasoning: "API unavailable", verdict: "Human-Written" };
 
   try {
     const prompt = `Analyze the following text for signs of AI generation (repetitive structure, lack of burstiness, generic phrasing, perfect grammar but low nuance). 
@@ -271,8 +272,8 @@ export const detectAIProbability = async (text: string): Promise<ZeroAIScore> =>
 };
 
 export const humanizeContent = async (text: string): Promise<string> => {
-  if (!process.env.API_KEY) return text;
-  
+  if (!API_KEY) return text;
+
   try {
     const prompt = `Rewrite the following text to make it sound more human, authentic, and natural. 
     Increase sentence variety (burstiness), use more conversational but professional transitions, and remove robotic phrasing. 

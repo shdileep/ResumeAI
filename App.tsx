@@ -10,7 +10,8 @@ import ZeroAI from './components/ZeroAI';
 import ChatBot from './components/ChatBot';
 import { AppView } from './types';
 
-import { auth, onAuthStateChanged } from './services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './services/firebase';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
