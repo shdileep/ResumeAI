@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ResumeData, Education, Project, WorkExperience, Certification } from '../types';
+import { auth, saveResume, getResume } from '../services/firebase';
 import { ChevronRight, ChevronLeft, Plus, Trash2, Wand2, Download, Printer, Briefcase, Sparkles } from 'lucide-react';
 import { generateProfessionalSummary, polishSentence } from '../services/geminiService';
 
@@ -23,7 +24,6 @@ const ResumeBuilder: React.FC = () => {
   // Load initial data
   React.useEffect(() => {
     const loadData = async () => {
-      const { auth, getResume } = await import('../services/firebase');
       if (auth.currentUser) {
         const data = await getResume(auth.currentUser.uid);
         if (data) setResume(data);

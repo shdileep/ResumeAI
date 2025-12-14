@@ -11,7 +11,7 @@ const Auth: React.FC<AuthProps> = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      // Dynamic import to avoid issues if firebase isn't fully set up yet
+      // Static import is safer
       const { signInWithGoogle } = await import('../services/firebase');
       await signInWithGoogle();
     } catch (err) {
