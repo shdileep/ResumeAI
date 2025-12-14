@@ -10,13 +10,14 @@ import ZeroAI from './components/ZeroAI';
 import ChatBot from './components/ChatBot';
 import { AppView } from './types';
 
+import { auth, onAuthStateChanged } from './services/firebase';
+
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
 
   React.useEffect(() => {
-    const { auth, onAuthStateChanged } = require('./services/firebase');
     const unsubscribe = onAuthStateChanged(auth, (u: any) => {
       setUser(u);
       setLoading(false);
