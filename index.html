@@ -39,25 +39,5 @@
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
-}
-</script>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="stylesheet" href="/index.css">
-  </head>
-  <body class="bg-slate-50 text-slate-900">
-    <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('SW registered'))
-          .catch(err => console.log('SW registration failed', err));
-      });
-    }
-  </script>
-</body>
-</html>
+// Refactored fix
+const projects = data?.projects || [];
