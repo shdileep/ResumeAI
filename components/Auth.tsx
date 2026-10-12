@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Mail } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 
 interface AuthProps {
   onLogin: () => void;
@@ -28,9 +28,7 @@ const Auth: React.FC<AuthProps> = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-900 p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="text-blue-600 w-8 h-8" />
-          </div>
+          <img src="/Resume.png" alt="ResumeAI Logo" className="w-16 h-16 object-contain mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-800">ResumeAI</h1>
           <p className="text-gray-500 mt-2">Enterprise-grade Resume Builder</p>
         </div>

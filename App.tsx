@@ -8,6 +8,7 @@ import ATSChecker from './components/ATSChecker';
 import InterviewAI from './components/InterviewAI';
 import ZeroAI from './components/ZeroAI';
 import ChatBot from './components/ChatBot';
+import resumeLogo from './Resume.png';
 import { AppView } from './types';
 
 import { auth, onAuthStateChanged } from './services/firebase';
@@ -49,7 +50,7 @@ const App: React.FC = () => {
       <aside className="w-20 md:w-64 bg-white border-r border-slate-200 fixed h-full z-10 hidden md:flex flex-col justify-between">
         <div>
           <div className="p-6 flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
+            <img src={resumeLogo} alt="ResumeAI Logo" className="w-8 h-8 object-contain" />
             <span className="text-xl font-bold text-slate-800 hidden md:inline">ResumeAI</span>
           </div>
           <nav className="mt-6 px-4 space-y-2">
@@ -79,7 +80,10 @@ const App: React.FC = () => {
       <main className="flex-1 md:ml-64 transition-all duration-300 relative">
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-20 shadow-sm no-print">
-          <div className="md:hidden font-bold text-xl text-blue-600">ResumeAI</div>
+          <div className="md:hidden flex items-center gap-2 font-bold text-xl text-blue-600">
+            <img src={resumeLogo} alt="ResumeAI Logo" className="w-7 h-7 object-contain" />
+            <span>ResumeAI</span>
+          </div>
           <div className="flex items-center gap-4 ml-auto">
             <div className="text-right hidden sm:block">
               <div className="text-sm font-bold text-slate-700">Demo User</div>
