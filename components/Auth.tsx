@@ -21,9 +21,7 @@ const Auth: React.FC<AuthProps> = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // For now we only support Google Login fully as per request "Realtime database" mostly implies using the ecosystem
-    // But we can keep the UI for looks.
-    setError("Please use Google Sign In for this demo version.");
+    handleGoogleLogin();
   };
 
   return (
