@@ -95,3 +95,104 @@ export interface ChatMessage {
 }
 
 export type AppView = 'auth' | 'dashboard' | 'builder' | 'enhance' | 'settings' | 'interview' | 'zeroai';
+
+// -------------------------------------------------------------
+// Standard ATS Resume & Strict ATS Review Extended Types
+// -------------------------------------------------------------
+
+export interface StandardATSResume {
+  contactInfo: {
+    fullName: string;
+    roleTitle?: string;
+    phone: string;
+    email: string;
+    location: string; // City, State
+    linkedin: string;
+    github: string;
+    portfolio: string;
+  };
+  professionalSummary: string; // 2-4 lines concise overview
+  technicalSkills: {
+    languages: string[];
+    aiMl?: string[];
+    frameworks: string[];
+    databases: string[];
+    cloudDevops: string[];
+    toolsPlatforms: string[];
+  };
+  professionalExperience: {
+    id: string;
+    company: string;
+    role: string;
+    location: string;
+    dates: string; // Uniform format, e.g. "May 2024 – Present"
+    type?: 'Full-time' | 'Internship' | 'Contract' | 'Independent Project';
+    bullets: string[];
+  }[];
+  projects: {
+    id: string;
+    title: string;
+    techStack: string[];
+    dates?: string;
+    link?: string;
+    purpose?: string;
+    bullets: string[];
+  }[];
+  education: {
+    id: string;
+    degree: string;
+    institution: string;
+    location?: string;
+    graduationYear: string;
+    score?: string; // CGPA/Percentage
+  }[];
+  certificationsAndAchievements: {
+    id: string;
+    title: string;
+    issuer?: string;
+    date?: string;
+    type: 'certification' | 'achievement' | 'award';
+  }[];
+}
+
+export type FindingSeverity = 'Critical' | 'High' | 'Medium' | 'Low';
+
+export interface AuditFinding {
+  id: string;
+  section: string;
+  severity: FindingSeverity;
+  issue: string;
+  originalText: string;
+  suggestedCorrection: string;
+  whyItMatters: string;
+  accepted?: boolean;
+}
+
+export interface SectionAudit {
+  section: string;
+  status: 'Good' | 'Needs Improvement' | 'Critical';
+  present: string[];
+  missing: string[];
+  whyItMatters: string;
+  howToFix: string;
+}
+
+export interface DetailedATSScoreReport {
+  overallScore: number;
+  jdMatchScore?: number;
+  hasJobDescription: boolean;
+  keywordCoveragePercentage: number;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  formattingIssues: string[];
+  criticalIssues: string[];
+  sections: SectionAudit[];
+  findings: AuditFinding[];
+  writingAudit: {
+    spellingGrammarCount: number;
+    overusedVerbs: string[];
+    repeatedKeywords: string[];
+    weakPhrases: string[];
+  };
+  disclaimer: string;
+}

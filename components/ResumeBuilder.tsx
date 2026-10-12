@@ -1,8 +1,13 @@
-import React, { useState, useRef } from 'react';
-import { ResumeData, Education, Project, WorkExperience, Certification } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ResumeData, Education, Project, WorkExperience, Certification, StandardATSResume } from '../types';
 import { auth, saveResume, getResume } from '../services/firebase';
-import { ChevronRight, ChevronLeft, Plus, Trash2, Wand2, Download, Printer, Briefcase, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Trash2, Wand2, Download, Printer, Sparkles, FileText, Upload, ArrowLeft, RefreshCw, FileCheck } from 'lucide-react';
 import { generateProfessionalSummary, polishSentence } from '../services/geminiService';
+import { convertRawResumeToStandardATS, resumeDataToStandardATS, standardATSToResumeData } from '../services/atsEngine';
+import DocumentUploadZone from './DocumentUploadZone';
+import ATSResumeDocument from './ATSResumeDocument';
+import { ParsedDocument } from '../services/documentParser';
+import { downloadResumeAsDocx, downloadResumeAsPdf } from '../services/exportResume';
 
 const emptyResume: ResumeData = {
   personalInfo: { fullName: '', role: '', email: '', phone: '', linkedin: '', github: '', portfolio: '' },
@@ -14,26 +19,33 @@ const emptyResume: ResumeData = {
   certifications: []
 };
 
+type ResumeSectionMode = 'options' | 'create' | 'upload';
+
 const ResumeBuilder: React.FC = () => {
+  const [sectionMode, setSectionMode] = useState<ResumeSectionMode>('options');
   const [step, setStep] = useState(1);
   const [resume, setResume] = useState<ResumeData>(emptyResume);
+  const [convertedATS, setConvertedATS] = useState<StandardATSResume | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [polishingId, setPolishingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Load initial data
-  React.useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
       if (auth.currentUser) {
         const data = await getResume(auth.currentUser.uid);
-        if (data) setResume(data);
+        if (data && data.personalInfo?.fullName) {
+          setResume(data);
+        }
       }
     };
     loadData();
   }, []);
 
   // Save on change (debounced)
-  React.useEffect(() => {
+  useEffect(() => {
     const saveData = async () => {
       setIsSaving(true);
       try {
@@ -51,6 +63,24 @@ const ResumeBuilder: React.FC = () => {
     const timeout = setTimeout(saveData, 2000);
     return () => clearTimeout(timeout);
   }, [resume]);
+
+  // Handle Upload and Convert to ATS
+  const handleUploadedResume = async (doc: ParsedDocument) => {
+    setIsConverting(true);
+    try {
+      const ats = await convertRawResumeToStandardATS(doc.text);
+      setConvertedATS(ats);
+      setSectionMode('upload');
+      // Also sync back to standard resume data
+      const syncedData = standardATSToResumeData(ats);
+      setResume(syncedData);
+    } catch (err: any) {
+      console.error('ATS Conversion error:', err);
+      alert('Could not convert resume. Please check the document contents.');
+    } finally {
+      setIsConverting(false);
+    }
+  };
 
   // Helpers to update nested state
   const updateInfo = (field: string, value: string) => {
@@ -121,7 +151,7 @@ const ResumeBuilder: React.FC = () => {
     }));
   };
 
-  // --- RENDER STEPS ---
+  // --- RENDER STEPS FOR STEP-BY-STEP BUILDER ---
 
   const renderBasicInfo = () => (
     <div className="space-y-4 animate-fadeIn">
@@ -165,7 +195,7 @@ const ResumeBuilder: React.FC = () => {
     <div className="space-y-6 animate-fadeIn">
       <h2 className="text-xl font-bold text-gray-800">Education</h2>
 
-      {resume.education.map((edu, index) => (
+      {resume.education.map((edu) => (
         <div key={edu.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50 relative">
           <button onClick={() => setResume(p => ({ ...p, education: p.education.filter(e => e.id !== edu.id) }))} className="absolute right-2 top-2 text-red-500 hover:text-red-700">
             <Trash2 className="w-4 h-4" />
@@ -280,107 +310,45 @@ const ResumeBuilder: React.FC = () => {
     </div>
   );
 
-  const renderPreview = () => (
-    <div className="animate-fadeIn">
-      <div className="flex justify-between items-center mb-6 no-print">
-        <h2 className="text-xl font-bold text-gray-800">Final Resume Preview</h2>
-        <div className="flex gap-2">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-md">
-            <Printer className="w-4 h-4" /> Print / Save as PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Resume Document - A4 Aspect Ratio approx */}
-      <div className="bg-white shadow-xl p-8 md:p-12 max-w-4xl mx-auto min-h-[1000px] text-gray-800" id="resume-preview">
-        {/* Header */}
-        <div className="border-b-2 border-gray-800 pb-4 mb-6">
-          <h1 className="text-3xl font-bold uppercase tracking-wide">{resume.personalInfo.fullName || 'YOUR NAME'}</h1>
-          <p className="text-lg text-gray-600 font-medium">{resume.personalInfo.role || 'Desired Role'}</p>
-          <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-600">
-            <span>{resume.personalInfo.email}</span>
-            <span>•</span>
-            <span>{resume.personalInfo.phone}</span>
-            <span>•</span>
-            <span>{resume.personalInfo.linkedin}</span>
+  const renderPreview = () => {
+    const atsResume = resumeDataToStandardATS(resume);
+    return (
+      <div className="animate-fadeIn space-y-6">
+        <div className="flex flex-wrap justify-between items-center gap-3 no-print bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Final ATS Resume Preview</h2>
+            <p className="text-xs text-gray-500">Standard single-column layout optimized for parsers and recruiters</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => downloadResumeAsDocx(atsResume)}
+              className="bg-blue-600 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-blue-700 shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5" /> Word (.docx)
+            </button>
+            <button
+              onClick={() => downloadResumeAsPdf(atsResume)}
+              className="bg-red-600 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-red-700 shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5" /> PDF (.pdf)
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="bg-slate-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-slate-800 shadow-xs"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print
+            </button>
           </div>
         </div>
 
-        {/* Sections */}
-        {resume.summary && (
-          <div className="mb-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-300 mb-2">Professional Summary</h3>
-            <p className="text-sm leading-relaxed">{resume.summary}</p>
-          </div>
-        )}
-
-        {resume.workExperience.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-300 mb-2">Work Experience</h3>
-            <div className="space-y-4">
-              {resume.workExperience.map(exp => (
-                <div key={exp.id}>
-                  <div className="flex justify-between items-baseline">
-                    <h4 className="font-bold text-sm">{exp.company} - {exp.designation}</h4>
-                    <span className="text-xs text-gray-500">{exp.duration}</span>
-                  </div>
-                  <p className="text-sm mt-1 whitespace-pre-line text-gray-700">{exp.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {resume.projects.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-300 mb-2">Projects</h3>
-            <div className="space-y-4">
-              {resume.projects.map(p => (
-                <div key={p.id}>
-                  <div className="flex justify-between items-baseline">
-                    <h4 className="font-bold text-sm">{p.title}</h4>
-                    <span className="text-xs text-gray-500">{p.startDate} - {p.endDate}</span>
-                  </div>
-                  <p className="text-sm mt-1 whitespace-pre-line text-gray-700">{p.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {resume.skills.languages && (
-          <div className="mb-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-300 mb-2">Technical Skills</h3>
-            <div className="text-sm grid grid-cols-[120px_1fr] gap-2">
-              <span className="font-semibold">Languages:</span> <span>{resume.skills.languages}</span>
-              <span className="font-semibold">Tools/Frameworks:</span> <span>{resume.skills.frameworks}</span>
-            </div>
-          </div>
-        )}
-
-        {resume.education.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-300 mb-2">Education</h3>
-            <div className="space-y-3">
-              {resume.education.map(e => (
-                <div key={e.id} className="flex justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm">{e.institution}</h4>
-                    {e.location && <p className="text-xs text-gray-500">{e.location}</p>}
-                    <p className="text-sm">{e.degree} {e.specialization ? `in ${e.specialization}` : ''}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs block text-gray-500">{e.startYear} - {e.endYear}</span>
-                    <span className="text-xs font-medium">Score: {e.score}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ATSResumeDocument
+          resume={atsResume}
+          onChange={(updated) => setResume(standardATSToResumeData(updated))}
+          allowDownload={false}
+        />
       </div>
-    </div>
-  );
+    );
+  };
 
   const steps = [
     { title: 'Basic Info', render: renderBasicInfo },
@@ -397,12 +365,205 @@ const ResumeBuilder: React.FC = () => {
         </div>
       )
     },
-    { title: 'Preview', render: renderPreview }
+    { title: 'Preview & Download', render: renderPreview }
   ];
 
+  // =========================================================
+  // VIEW: 1. OPTION SELECTOR (Upload Resume vs Create Resume)
+  // =========================================================
+  if (sectionMode === 'options') {
+    return (
+      <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 animate-fadeIn">
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <h1 className="text-3xl font-bold text-slate-800">Resume Builder & ATS Converter</h1>
+          <p className="text-slate-500 text-sm">
+            Choose whether to build your resume step-by-step from scratch or upload an existing file to instantly convert it into a standardized single-page ATS resume.
+          </p>
+        </div>
+
+        {/* 2 Option Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+          {/* Card 1: Create Resume */}
+          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+                <FileText className="w-7 h-7" />
+              </div>
+              <div className="inline-block px-2.5 py-1 bg-blue-100 text-blue-700 text-[11px] font-bold rounded-full mb-3 uppercase tracking-wider">
+                Step-by-Step Builder
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-3">Create Resume</h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                Fill in your background with our guided form. Includes AI summary generation, bullet-point polishers, and real-time formatting according to industry standards.
+              </p>
+              <ul className="space-y-2.5 text-xs text-slate-600 mb-8">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Guided multi-step questionnaire with auto-saving
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  AI action verb and achievement enhancer
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Direct export to Word (.docx) and PDF (.pdf)
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                setSectionMode('create');
+                setStep(1);
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition flex items-center justify-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Start Creating Resume
+            </button>
+          </div>
+
+          {/* Card 2: Upload Resume & Convert to ATS */}
+          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+                <Upload className="w-7 h-7" />
+              </div>
+              <div className="inline-block px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[11px] font-bold rounded-full mb-3 uppercase tracking-wider">
+                Instant Single-Page ATS Convert
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-3">Upload Resume</h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                Have an existing resume? Upload your file to automatically convert it into a standardized single-page ATS-compliant layout following all 7 standard sections.
+              </p>
+
+              {/* Upload Card Box Button right on the card */}
+              <div className="mb-4">
+                <DocumentUploadZone
+                  label="Click or Drag Resume Here to Convert"
+                  sublabel="Accepts PDF, DOCX, DOC, TXT, RTF, ODT (Max 10MB)"
+                  onTextExtracted={handleUploadedResume}
+                />
+              </div>
+
+              {isConverting && (
+                <div className="p-3 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg flex items-center gap-2 animate-pulse mb-4">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Converting into standardized single-page ATS layout...
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 text-center text-xs text-slate-400">
+              Converts to Contact • Summary • Skills • Experience • Projects • Education • Certifications
+            </div>
+          </div>
+        </div>
+
+        {/* ATS Checklist Box */}
+        <div className="bg-slate-900 text-slate-200 p-6 rounded-2xl shadow-sm text-xs space-y-3">
+          <div className="flex items-center gap-2 font-bold text-slate-100 text-sm">
+            <FileCheck className="w-4 h-4 text-emerald-400" />
+            Standard ATS Resume Structure & Credibility Checklist
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-slate-300 text-[11px] leading-relaxed">
+            <div>
+              <strong className="text-white block mb-1">1. Layout & Styling:</strong>
+              Single column, Calibri/Arial, no tables, no text boxes, no icons or photos.
+            </div>
+            <div>
+              <strong className="text-white block mb-1">2. Standard Headings:</strong>
+              Professional Summary • Technical Skills • Experience • Projects • Education.
+            </div>
+            <div>
+              <strong className="text-white block mb-1">3. Factual Accuracy:</strong>
+              Accurate dates (e.g. May 2024 – Present), verifiable links, truthful metrics.
+            </div>
+            <div>
+              <strong className="text-white block mb-1">4. Dual Export:</strong>
+              Selectable-text PDF (.pdf) and structured Microsoft Word (.docx).
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================
+  // VIEW: 2. UPLOADED RESUME CONVERTED TO SINGLE-PAGE ATS
+  // =========================================================
+  if (sectionMode === 'upload' && convertedATS) {
+    return (
+      <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 animate-fadeIn">
+        {/* Top Navigation Bar with Back to Options */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSectionMode('options')}
+              className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to Options
+            </button>
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Standardized Single-Page ATS Resume</h2>
+              <p className="text-xs text-slate-500">Converted according to ATS specifications • Editable live preview</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setSectionMode('create');
+                setStep(1);
+              }}
+              className="px-3.5 py-2 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition"
+            >
+              Open in Step-by-Step Form
+            </button>
+          </div>
+        </div>
+
+        {/* Live A4 ATS Document Preview with Downloads & Editing */}
+        <ATSResumeDocument
+          resume={convertedATS}
+          onChange={(updated) => {
+            setConvertedATS(updated);
+            setResume(standardATSToResumeData(updated));
+          }}
+          isTailoredToJD={false}
+        />
+      </div>
+    );
+  }
+
+  // =========================================================
+  // VIEW: 3. STEP-BY-STEP BUILDER (Existing details preserved)
+  // =========================================================
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6">
-      <div className="bg-white rounded-xl shadow-lg min-h-[600px] flex flex-col md:flex-row overflow-hidden">
+    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4 animate-fadeIn">
+      {/* Top Banner with Easy Back to Options Button */}
+      <div className="bg-white px-5 py-3 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSectionMode('options')}
+            className="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Options
+          </button>
+          <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+            Create Resume Mode • Step-by-step
+          </span>
+        </div>
+
+        <div className="text-xs text-slate-500 flex items-center gap-2">
+          {isSaving ? <span className="text-blue-600 font-medium">Saving draft...</span> : <span>Draft Saved</span>}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-lg min-h-[600px] flex flex-col md:flex-row overflow-hidden border border-slate-200">
         {/* Sidebar Steps */}
         <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-6 no-print">
           <h3 className="font-bold text-slate-700 mb-6 uppercase text-xs tracking-wider">Progress</h3>
